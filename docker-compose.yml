@@ -1,0 +1,43 @@
+version: "3.9"
+
+x-base-versions: &base-versions
+  NODE_MAJOR: "18"
+
+services:
+  nestjs-service: &nestjs-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args: *base-versions
+    tmpfs:
+      - /tmp:exec,mode=777
+    stdin_open: true
+    env_file: .env
+    volumes:
+      - .:/nestjs-app:cached
+      - node_modules:/nestjs-app/node_modules
+    depends_on:
+      - redis-dev
+
+  shell-dev:
+    <<: *nestjs-service
+    command: /bin/bash
+
+  nestjs-dev:
+    <<: *nestjs-service
+    command: npm run start:dev
+    ports:
+      - "3000:3000"
+
+  redis-dev:
+    image: redis:alpine
+    expose:
+      - 6379
+    volumes:
+      - redis-dev:/data
+    tmpfs:
+      - /tmp
+
+volumes:
+  redis-dev:
+  node_modules:
