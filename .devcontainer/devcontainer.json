@@ -24,11 +24,13 @@
 		"[html, javascript, typescript]": {
 			"editor.tabSize": 2
 		},
-		"editor.detectIndentation": true,
+		"editor.detectIndentation": false,
+		"editor.defaultFormatter": "dbaeumer.vscode-eslint",
 	},
 
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
+		"firsttris.vscode-jest-runner",
 		"dbaeumer.vscode-eslint",
 	],
 
@@ -39,7 +41,7 @@
 	"runServices": ["vscode"],
 
 	// Uncomment the next line if you want to keep your containers running after VS Code shuts down.
-	// "shutdownAction": "none",
+	"shutdownAction": "stopCompose",
 
 	// Uncomment the next line to run commands after the container is created - for example installing curl.
 	"postCreateCommand": "npm install",
