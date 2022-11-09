@@ -30,6 +30,10 @@ services:
     ports:
       - "3000:3000"
 
+  vscode:
+    <<: *nestjs-service
+    command: /bin/sh -c "while sleep 1000; do :; done"
+
   redis-dev:
     image: redis:alpine
     expose:
