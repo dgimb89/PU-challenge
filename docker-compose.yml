@@ -16,10 +16,11 @@ services:
     volumes:
       - .:/nestjs-app:cached
       - node_modules:/nestjs-app/node_modules
+      - dist:/nestjs-app/dist
     depends_on:
       - redis-dev
 
-  shell-dev:
+  shell:
     <<: *nestjs-service
     command: /bin/bash
 
@@ -41,3 +42,4 @@ services:
 volumes:
   redis-dev:
   node_modules:
+  dist:
