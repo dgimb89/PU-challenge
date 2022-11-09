@@ -11,9 +11,10 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
+    "alwaysStrict": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
