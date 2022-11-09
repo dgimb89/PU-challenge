@@ -43,6 +43,15 @@ services:
     tmpfs:
       - /tmp
 
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:${REDIS_HOST}:${REDIS_PORT}
+    ports:
+      - "8081:8081"
+    depends_on:
+        - ${REDIS_HOST}
+
 volumes:
   redis-dev:
   node_modules:
