@@ -28,6 +28,8 @@ import { FlightsModule } from './flights/flights.module';
         FLIGHTS_CACHE_TTL_S: Joi.number(),
         SOURCES_FETCH_INTERVAL_MS: Joi.number(),
         SOURCES_FETCH_CONCURRENCY: Joi.number(),
+        SOURCES_FETCH_ATTEMPTS: Joi.number(),
+        SOURCES_FETCH_BACKOFF_MS: Joi.number(),
       }),
     }),
     FlightsModule,
