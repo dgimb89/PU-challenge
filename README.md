@@ -35,6 +35,7 @@ docker compose up nestjs-dev
 **Repeating jobs** to fetch flight data from sources using the [**Bull Queue system**](https://github.com/OptimalBits/bull)
 - One job for each data source allows parallelization
 - Allows to spread out fetching Jobs throughout multiple workers, if needed
+- Great configuration options, e.g. **retry with backoff** or **job throttling** to prevent network stalling (see `src/flights/flights.module.ts`)
 - Use of Redis as backend
 - **Job Consumer** logic is implemented in `src/flights/flight-source.consumer.ts`
 - **Job Producer** logic is implemented in `src/flights/flights.service.ts`, see `produceFetchJobs` method
