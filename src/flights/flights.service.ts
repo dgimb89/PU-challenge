@@ -28,11 +28,8 @@ export class FlightsService {
   constructor(
     private configService: ConfigService,
     @InjectQueue('flight-sources') private flightSourcesQueue: Queue,
-  ) {}
-
-  onModuleInit() {
-    // TODO: Redis doesn't work on reload.
-    // We use Redis for explicit caching of flights data.
+  ) {
+    // Besides Job Queuing we use Redis as data store for expiring flights data.
     // Not to be confused with the usage as NestJS CacheModule
     this.redis = new Redis({
       host: this.configService.get('REDIS_HOST'),
@@ -42,16 +39,11 @@ export class FlightsService {
     this.ttl =
       this.configService.get('FLIGHTS_CACHE_TTL_S') || DEFAULT_REDIS_TTL;
 
-    // TODO: This is not working
-    // Clear redis cache on startup.
-    this.redis.del(this.redisCacheKeyExpression()).then((number) => {
-      this.logger.log(`Cleared ${number} keys from Redis`);
-    });
-    this.produceFetchJobs(this.flightSourcesQueue);
+    this.produceFetchJobs();
   }
 
   // Produce repeating jobs for fetching flight data from sources.
-  async produceFetchJobs(flightSourcesQueue: Queue) {
+  async produceFetchJobs() {
     // Empty the queue before adding new jobs.
     await flightSourcesQueue.empty();
 
@@ -59,14 +51,14 @@ export class FlightsService {
       // Unfortunately, it is not possible to run repeating jobs immediately.
       // See https://github.com/OptimalBits/bull/issues/1239
       // Therefore, we need to schedule a another non-repeating job per source to fetch flight data immediately.
-      const immediateJob = await flightSourcesQueue.add(
+      const immediateJob = await this.flightSourcesQueue.add(
         { source },
         this.generateJobConfiguration(index),
       );
       this.logger.log(`Added job ${immediateJob.id} for source ${source}`);
 
       // One repeating job for each source to continuously fetch flight data.
-      const repeatingJob = await flightSourcesQueue.add(
+      const repeatingJob = await this.flightSourcesQueue.add(
         { source },
         this.generateJobConfiguration(index, true),
       );
@@ -101,6 +93,9 @@ export class FlightsService {
 
   addFlights(fromSource: string, flights: Flight[]) {
     // TODO: Remove keys that were removed from source
+    // Need some clarification on how to interpret the specification:
+    // "any information that we get from the endpoints remains valid for an hour."
+    // Does this mean that we shouldn't remove flights that are not present in the source anymore?
     flights.forEach((flight) => {
       const key = this.getRedisKeyForFlight(flight);
       this.redis.set(key, serialize(flight), 'EX', this.ttl);
@@ -112,11 +107,9 @@ export class FlightsService {
   }
 
   getFlights(): Observable<Flight> {
-    const keysPromise = this.redis.keys(this.redisCacheKeyExpression());
+    const keysPromise = this.redis.keys(this.redisFlightStoreKeyExpression());
     const observable$ = from(keysPromise).pipe(
-      tap((keys) =>
-        this.logger.debug(`Fetching flights with the following keys: ${keys}`),
-      ),
+      tap((keys) => this.logger.debug(`Read ${keys.length} flights`)),
       mergeMap((key) => key),
       map((key) => this.redis.getBuffer(key)),
       mergeMap((buffer) => buffer),
@@ -125,8 +118,7 @@ export class FlightsService {
     return observable$;
   }
 
-  // TODO: rename
-  private redisCacheKeyExpression() {
+  private redisFlightStoreKeyExpression() {
     return `${CACHE_PREFIX}:*`;
   }
 }
