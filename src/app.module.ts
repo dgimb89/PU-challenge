@@ -30,6 +30,7 @@ import { FlightsModule } from './flights/flights.module';
         SOURCES_FETCH_CONCURRENCY: Joi.number(),
         SOURCES_FETCH_ATTEMPTS: Joi.number(),
         SOURCES_FETCH_BACKOFF_MS: Joi.number(),
+        JOB_LIMIT_PER_SECOND: Joi.number(),
       }),
     }),
     FlightsModule,
