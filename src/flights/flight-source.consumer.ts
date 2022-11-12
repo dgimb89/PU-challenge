@@ -1,4 +1,4 @@
-import { catchError, firstValueFrom, map, tap } from 'rxjs';
+import { map, tap } from 'rxjs';
 import { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { HttpService } from '@nestjs/axios';
 import { Job } from 'bull';
@@ -7,8 +7,6 @@ import { Processor, Process, OnQueueActive } from '@nestjs/bull';
 
 import { Flight } from './flight.interface';
 import { FlightsService } from './flights.service';
-
-const FLIGHTS_KEY = 'flights';
 
 @Processor('flight-sources')
 export class FlightSourceConsumer {
@@ -38,15 +36,15 @@ export class FlightSourceConsumer {
       // The transformation is trivial, so we keep it simple here
       // instead of using a custom transformer for different sources.
       map((response: AxiosResponse): Flight[] => response.data.flights),
-      tap((response: Flight[]) =>
-        this.logger.debug(`Fetched ${response.length} flights from ${url}`),
+      tap((flights: Flight[]) =>
+        this.logger.debug(`Fetched ${flights.length} flights from ${url}`),
       ),
     );
     observable.subscribe({
-      next: (response) => {
-        this.flightService.addFlights(url, response);
+      next: (flights: Flight[]) => {
+        this.flightService.addFlights(url, flights);
       },
-      error: async (error) => {
+      error: async (error: Error) => {
         await job.moveToFailed({ message: error.toString() }, true);
         this.logger.error(`Error fetching flight from ${url}: ${error}`);
       },

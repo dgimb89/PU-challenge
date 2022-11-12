@@ -50,7 +50,7 @@ export class FlightsService {
     for (const [index, source] of SOURCES.entries()) {
       // Unfortunately, it is not possible to run repeating jobs immediately.
       // See https://github.com/OptimalBits/bull/issues/1239
-      // Therefore, we need to schedule a another non-repeating job per source to fetch flight data immediately.
+      // Therefore, we need to schedule a non-repeating job per source to fetch flight data immediately.
       const immediateJob = await this.flightSourcesQueue.add(
         { source },
         this.generateJobConfiguration(index),
@@ -110,7 +110,7 @@ export class FlightsService {
   }
 
   addFlights(fromSource: string, flights: Flight[]) {
-    // TODO: Remove keys that were removed from source
+    // TODO: Remove keys that were removed from source?
     // Need some clarification on how to interpret the specification:
     // "any information that we get from the endpoints remains valid for an hour."
     // Does this mean that we shouldn't remove flights that are not present in the source anymore?
@@ -124,19 +124,19 @@ export class FlightsService {
     return `${CACHE_PREFIX}:${getFlightIdentifier(flight)}`;
   }
 
+  private redisFlightStoreKeyExpression() {
+    return `${CACHE_PREFIX}:*`;
+  }
+
   getFlights(): Observable<Flight> {
     const keysPromise = this.redis.keys(this.redisFlightStoreKeyExpression());
     const observable$ = from(keysPromise).pipe(
-      tap((keys) => this.logger.debug(`Read ${keys.length} flights`)),
-      mergeMap((key) => key),
-      map((key) => this.redis.getBuffer(key)),
-      mergeMap((buffer) => buffer),
-      map((buffer) => deserialize(buffer)),
+      tap((keys: string[]) => this.logger.debug(`Read ${keys.length} flights`)),
+      mergeMap((key: string[]) => key),
+      map((key: string) => this.redis.getBuffer(key)),
+      mergeMap((buffer: Promise<Buffer>) => buffer),
+      map((buffer: Buffer) => deserialize(buffer)),
     );
     return observable$;
-  }
-
-  private redisFlightStoreKeyExpression() {
-    return `${CACHE_PREFIX}:*`;
   }
 }
