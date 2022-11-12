@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { from, map, mergeMap, Observable, tap } from 'rxjs';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { serialize, deserialize } from 'v8';
 import { JobOptions, Queue } from 'bull';
@@ -20,7 +20,7 @@ const DEFAULT_SOURCES_FETCH_ATTEMPTS = 3;
 const CACHE_PREFIX = 'flights';
 
 @Injectable()
-export class FlightsService {
+export class FlightsService implements OnModuleInit {
   private redis: Redis;
   private ttl: number;
   private readonly logger = new Logger(FlightsService.name);
@@ -38,15 +38,16 @@ export class FlightsService {
 
     this.ttl =
       this.configService.get('FLIGHTS_CACHE_TTL_S') || DEFAULT_REDIS_TTL;
+  }
 
-    this.produceFetchJobs();
+  async onModuleInit() {
+    // Empty the queue before adding new jobs.
+    await this.cleanJobQueue();
+    await this.produceFetchJobs();
   }
 
   // Produce repeating jobs for fetching flight data from sources.
   async produceFetchJobs() {
-    // Empty the queue before adding new jobs.
-    await this.cleanJobQueue();
-
     for (const [index, source] of SOURCES.entries()) {
       // Unfortunately, it is not possible to run repeating jobs immediately.
       // See https://github.com/OptimalBits/bull/issues/1239
@@ -66,7 +67,7 @@ export class FlightsService {
     }
   }
 
-  private async cleanJobQueue() {
+  async cleanJobQueue() {
     // Bull does not provide a convenient way to remove all jobs from a queue (esp. repeating ones).
     // So we have to do it manually.
     // Inspired by https://github.com/OptimalBits/bull/issues/709#issuecomment-344561983
@@ -108,14 +109,15 @@ export class FlightsService {
     }
     return jobConfig;
   }
-
-  addFlights(fromSource: string, flights: Flight[]) {
+  addFlights(flights: Flight[]) {
     // TODO: Remove keys that were removed from source?
     // Need some clarification on how to interpret the specification:
     // "any information that we get from the endpoints remains valid for an hour."
     // Does this mean that we shouldn't remove flights that are not present in the source anymore?
     flights.forEach((flight) => {
       const key = this.getRedisKeyForFlight(flight);
+      // Serialization as Buffer reduces memory footprint
+      // and is faster than JSON.stringify
       this.redis.set(key, serialize(flight), 'EX', this.ttl);
     });
   }

@@ -42,7 +42,7 @@ export class FlightSourceConsumer {
     );
     observable.subscribe({
       next: (flights: Flight[]) => {
-        this.flightService.addFlights(url, flights);
+        this.flightService.addFlights(flights);
       },
       error: async (error: Error) => {
         await job.moveToFailed({ message: error.toString() }, true);
