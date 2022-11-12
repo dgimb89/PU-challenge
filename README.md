@@ -23,6 +23,8 @@ docker compose up nestjs-dev
 
 * Access http://localhost:3000
 
+* Run tests: `docker compose run shell npm test`
+
 # Implementation overview
 **Redis storage** for flight data
 - Just-in-time requests to endpoints is unreliable, pre-fetching is required
