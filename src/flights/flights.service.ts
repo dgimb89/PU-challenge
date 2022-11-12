@@ -3,7 +3,7 @@ import { from, map, mergeMap, Observable, tap } from 'rxjs';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { serialize, deserialize } from 'v8';
-import { Queue } from 'bull';
+import { JobOptions, Queue } from 'bull';
 import Redis from 'ioredis';
 
 import { Flight } from './flight.interface';
@@ -55,8 +55,28 @@ export class FlightsService {
     // Empty the queue before adding new jobs.
     await flightSourcesQueue.empty();
 
-    // Retry failed jobs immediately with exponential backoff.
-    const sharedConfig = {
+    for (const [index, source] of SOURCES.entries()) {
+      // Unfortunately, it is not possible to run repeating jobs immediately.
+      // See https://github.com/OptimalBits/bull/issues/1239
+      // Therefore, we need to schedule a another non-repeating job per source to fetch flight data immediately.
+      const immediateJob = await flightSourcesQueue.add(
+        { source },
+        this.generateJobConfiguration(index),
+      );
+      this.logger.log(`Added job ${immediateJob.id} for source ${source}`);
+
+      // One repeating job for each source to continuously fetch flight data.
+      const repeatingJob = await flightSourcesQueue.add(
+        { source },
+        this.generateJobConfiguration(index, true),
+      );
+      this.logger.log(`Added job ${repeatingJob.id} for source ${source}`);
+    }
+  }
+
+  generateJobConfiguration(sourceIndex: number, repeating = false): JobOptions {
+    const jobConfig: JobOptions = {
+      jobId: sourceIndex,
       attempts:
         this.configService.get('SOURCES_FETCH_ATTEMPTS') ||
         DEFAULT_SOURCES_FETCH_ATTEMPTS,
@@ -67,36 +87,16 @@ export class FlightsService {
           DEFAULT_SOURCES_FETCH_BACKOFF_MS,
       },
     };
-    // Repeating job to continuously fetch flight data.
-    const repeatConfig = Object.assign(
-      {
-        repeat: {
-          every:
-            this.configService.get('SOURCES_FETCH_INTERVAL_MS') ||
-            DEFAULT_SOURCES_FETCH_INTERVAL,
-        },
-      },
-      sharedConfig,
-    );
 
-    // One repeating job for each source
-    for (const [index, source] of SOURCES.entries()) {
-      // TODO: Separate job scheduling?
-      // Unfortunately, it is not possible to run repeating jobs immediately.
-      // See https://github.com/OptimalBits/bull/issues/1239
-      // Therefore, we need to schedule a another non-repeating job per source to fetch flight data immediately.
-      const immediateJob = await flightSourcesQueue.add(
-        { source },
-        Object.assign({ jobId: `immediate_${index}` }, sharedConfig),
-      );
-      this.logger.log(`Added job ${immediateJob.id} for source ${source}`);
-
-      const repeatingJob = await flightSourcesQueue.add(
-        { source },
-        Object.assign({ jobId: `repeat_${index}` }, repeatConfig),
-      );
-      this.logger.log(`Added job ${repeatingJob.id} for source ${source}`);
+    if (repeating) {
+      // Retry failed jobs immediately with exponential backoff.
+      jobConfig.repeat = {
+        every:
+          this.configService.get('SOURCES_FETCH_INTERVAL_MS') ||
+          DEFAULT_SOURCES_FETCH_INTERVAL,
+      };
     }
+    return jobConfig;
   }
 
   addFlights(fromSource: string, flights: Flight[]) {
