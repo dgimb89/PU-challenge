@@ -45,7 +45,7 @@ export class FlightsService {
   // Produce repeating jobs for fetching flight data from sources.
   async produceFetchJobs() {
     // Empty the queue before adding new jobs.
-    await flightSourcesQueue.empty();
+    await this.cleanJobQueue();
 
     for (const [index, source] of SOURCES.entries()) {
       // Unfortunately, it is not possible to run repeating jobs immediately.
@@ -64,6 +64,24 @@ export class FlightsService {
       );
       this.logger.log(`Added job ${repeatingJob.id} for source ${source}`);
     }
+  }
+
+  private async cleanJobQueue() {
+    // Bull does not provide a convenient way to remove all jobs from a queue (esp. repeating ones).
+    // So we have to do it manually.
+    // Inspired by https://github.com/OptimalBits/bull/issues/709#issuecomment-344561983
+    const multi = this.flightSourcesQueue.multi();
+    multi.del(this.flightSourcesQueue.toKey('repeat'));
+    multi.exec();
+
+    await Promise.all([
+      this.flightSourcesQueue.clean(0, 'delayed'),
+      this.flightSourcesQueue.clean(0, 'wait'),
+      this.flightSourcesQueue.clean(0, 'active'),
+      this.flightSourcesQueue.clean(0, 'completed'),
+      this.flightSourcesQueue.clean(0, 'failed'),
+      multi.exec(),
+    ]);
   }
 
   generateJobConfiguration(sourceIndex: number, repeating = false): JobOptions {
