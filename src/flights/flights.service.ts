@@ -6,7 +6,7 @@ import { serialize, deserialize } from 'v8';
 import { JobOptions, Queue } from 'bull';
 import Redis from 'ioredis';
 
-import { Flight } from './flight.interface';
+import { Flight, getFlightIdentifier } from './flight.interface';
 
 const SOURCES = [
   'https://coding-challenge.powerus.de/flight/source1',
@@ -100,12 +100,15 @@ export class FlightsService {
   }
 
   addFlights(fromSource: string, flights: Flight[]) {
-    // TODO: Move key generation to model
     // TODO: Remove keys that were removed from source
     flights.forEach((flight) => {
-      const key = `${CACHE_PREFIX}:${flight.slices[0].flight_number}-${flight.slices[1].flight_number}`;
+      const key = this.getRedisKeyForFlight(flight);
       this.redis.set(key, serialize(flight), 'EX', this.ttl);
     });
+  }
+
+  private getRedisKeyForFlight(flight: Flight) {
+    return `${CACHE_PREFIX}:${getFlightIdentifier(flight)}`;
   }
 
   getFlights(): Observable<Flight> {
