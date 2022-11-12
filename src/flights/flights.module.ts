@@ -13,10 +13,10 @@ const DEFAULT_JOB_LIMIT_PER_SECOND = 10;
   imports: [
     ConfigModule,
     BullModule.registerQueueAsync({
+      name: 'flight-sources',
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        name: 'flight-sources',
         // limit jobs per second to avoid stalling the network
         limiter: {
           max:
