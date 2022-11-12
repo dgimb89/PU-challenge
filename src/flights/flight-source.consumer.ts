@@ -8,7 +8,7 @@ import { Processor, Process, OnQueueActive } from '@nestjs/bull';
 import { Flight } from './flight.interface';
 import { FlightsService } from './flights.service';
 
-@Processor('flight-sources')
+@Processor(FlightsService.name)
 export class FlightSourceConsumer {
   private readonly logger = new Logger(FlightSourceConsumer.name);
 

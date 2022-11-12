@@ -14,7 +14,7 @@ const DEFAULT_SOURCES_FETCH_TIMEOUT_MS = 5000; // 5 seconds
   imports: [
     ConfigModule,
     BullModule.registerQueueAsync({
-      name: 'flight-sources',
+      name: FlightsService.name,
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

@@ -27,7 +27,7 @@ export class FlightsService {
 
   constructor(
     private configService: ConfigService,
-    @InjectQueue('flight-sources') private flightSourcesQueue: Queue,
+    @InjectQueue(FlightsService.name) private flightSourcesQueue: Queue,
   ) {
     // Besides Job Queuing we use Redis as data store for expiring flights data.
     // Not to be confused with the usage as NestJS CacheModule
